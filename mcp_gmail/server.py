@@ -349,15 +349,6 @@ def add_label_to_message(message_id: str, label_id: str) -> str:
     Returns:
         Confirmation message
     """
-    # Add the specified label
-    result = modify_message_labels(
-        service, user_id=settings.user_id, message_id=message_id, remove_labels=[], add_labels=[label_id]
-    )
-
-    # Get message details to show what was modified
-    headers = get_headers_dict(result)
-    subject = headers.get("Subject", "No Subject")
-
     # Get the label name for the confirmation message
     label_name = label_id
     labels = get_labels(service, user_id=settings.user_id)
@@ -366,12 +357,12 @@ def add_label_to_message(message_id: str, label_id: str) -> str:
             label_name = label.get("name", label_id)
             break
 
-    return f"""
-Label added to message:
-ID: {message_id}
-Subject: {subject}
-Added Label: {label_name} ({label_id})
-"""
+    # Add the specified label
+    modify_message_labels(
+        service, user_id=settings.user_id, message_id=message_id, remove_labels=[], add_labels=[label_id]
+    )
+
+    return f"Label '{label_name}' added to message {message_id}."
 
 
 @mcp.tool()
@@ -395,20 +386,11 @@ def remove_label_from_message(message_id: str, label_id: str) -> str:
             break
 
     # Remove the specified label
-    result = modify_message_labels(
+    modify_message_labels(
         service, user_id=settings.user_id, message_id=message_id, remove_labels=[label_id], add_labels=[]
     )
 
-    # Get message details to show what was modified
-    headers = get_headers_dict(result)
-    subject = headers.get("Subject", "No Subject")
-
-    return f"""
-Label removed from message:
-ID: {message_id}
-Subject: {subject}
-Removed Label: {label_name} ({label_id})
-"""
+    return f"Label '{label_name}' removed from message {message_id}."
 
 
 @mcp.tool()
