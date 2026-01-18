@@ -19,12 +19,9 @@ DEFAULT_CREDENTIALS_PATH = "credentials.json"
 DEFAULT_TOKEN_PATH = "token.json"
 DEFAULT_USER_ID = "me"
 
-# Gmail API scopes
+# Gmail API scopes - using gmail.modify which includes read, send, compose, labels
 GMAIL_SCOPES = [
-    "https://www.googleapis.com/auth/gmail.readonly",
-    "https://www.googleapis.com/auth/gmail.send",
-    "https://www.googleapis.com/auth/gmail.compose",
-    "https://www.googleapis.com/auth/gmail.labels",
+    "https://www.googleapis.com/auth/gmail.modify",
 ]
 
 # For simpler testing

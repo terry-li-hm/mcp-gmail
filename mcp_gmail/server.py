@@ -330,19 +330,11 @@ def mark_message_read(message_id: str) -> str:
         Confirmation message
     """
     # Remove the UNREAD label
-    result = modify_message_labels(
+    modify_message_labels(
         service, user_id=settings.user_id, message_id=message_id, remove_labels=["UNREAD"], add_labels=[]
     )
 
-    # Get message details to show what was modified
-    headers = get_headers_dict(result)
-    subject = headers.get("Subject", "No Subject")
-
-    return f"""
-Message marked as read:
-ID: {message_id}
-Subject: {subject}
-"""
+    return f"Message {message_id} marked as read."
 
 
 @mcp.tool()
