@@ -5,8 +5,7 @@ This module provides utilities for authenticating with and using the Gmail API.
 import base64
 import json
 import os
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+from email.message import EmailMessage
 from typing import Any, Dict, List, Optional
 
 from google.auth.transport.requests import Request
@@ -101,15 +100,16 @@ def create_message(
     Returns:
         A dictionary containing a base64url encoded email object
     """
-    message = MIMEText(message_text)
-    message["to"] = to
-    message["from"] = sender
-    message["subject"] = subject
+    message = EmailMessage()
+    message.set_content(message_text)
+    message["To"] = to
+    message["From"] = sender
+    message["Subject"] = subject
 
     if cc:
-        message["cc"] = cc
+        message["Cc"] = cc
     if bcc:
-        message["bcc"] = bcc
+        message["Bcc"] = bcc
 
     # Encode the message
     encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
@@ -141,24 +141,20 @@ def create_multipart_message(
     Returns:
         A dictionary containing a base64url encoded email object
     """
-    message = MIMEMultipart("alternative")
-    message["to"] = to
-    message["from"] = sender
-    message["subject"] = subject
+    message = EmailMessage()
+    message["To"] = to
+    message["From"] = sender
+    message["Subject"] = subject
 
     if cc:
-        message["cc"] = cc
+        message["Cc"] = cc
     if bcc:
-        message["bcc"] = bcc
+        message["Bcc"] = bcc
 
-    # Attach text part
-    text_mime = MIMEText(text_part, "plain")
-    message.attach(text_mime)
+    message.set_content(text_part)
 
-    # Attach HTML part if provided
     if html_part:
-        html_mime = MIMEText(html_part, "html")
-        message.attach(html_mime)
+        message.add_alternative(html_part, subtype="html")
 
     # Encode the message
     encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
@@ -176,26 +172,58 @@ def parse_message_body(message: Dict[str, Any]) -> str:
     Returns:
         The extracted message body text
     """
+    import html
+    import re
 
-    # Helper function to find text/plain parts
+    # Helper function to strip HTML tags and decode entities
+    def html_to_text(html_content: str) -> str:
+        # Decode HTML entities
+        text = html.unescape(html_content)
+        # Replace <br> and </p> with newlines
+        text = re.sub(r'<br\s*/?>', '\n', text, flags=re.IGNORECASE)
+        text = re.sub(r'</p>', '\n', text, flags=re.IGNORECASE)
+        # Remove all remaining HTML tags
+        text = re.sub(r'<[^>]+>', '', text)
+        # Collapse multiple newlines
+        text = re.sub(r'\n{3,}', '\n\n', text)
+        return text.strip()
+
+    # Helper function to find text parts (prefer text/plain, fallback to text/html)
     def get_text_part(parts):
-        text = ""
+        text_plain = ""
+        text_html = ""
         for part in parts:
-            if part["mimeType"] == "text/plain":
-                if "data" in part["body"]:
-                    text += base64.urlsafe_b64decode(part["body"]["data"]).decode()
+            mime_type = part.get("mimeType", "")
+            if mime_type == "text/plain":
+                if "data" in part.get("body", {}):
+                    text_plain += base64.urlsafe_b64decode(part["body"]["data"]).decode()
+            elif mime_type == "text/html":
+                if "data" in part.get("body", {}):
+                    text_html += base64.urlsafe_b64decode(part["body"]["data"]).decode()
             elif "parts" in part:
-                text += get_text_part(part["parts"])
-        return text
+                nested_text = get_text_part(part["parts"])
+                if nested_text:
+                    text_plain += nested_text
+        # Prefer text/plain, fallback to converted HTML
+        if text_plain:
+            return text_plain
+        if text_html:
+            return html_to_text(text_html)
+        return ""
 
     # Check if the message is multipart
     if "parts" in message["payload"]:
         return get_text_part(message["payload"]["parts"])
     else:
         # Handle single part messages
-        if "data" in message["payload"]["body"]:
-            data = message["payload"]["body"]["data"]
-            return base64.urlsafe_b64decode(data).decode()
+        payload = message["payload"]
+        mime_type = payload.get("mimeType", "")
+        if "data" in payload.get("body", {}):
+            data = payload["body"]["data"]
+            content = base64.urlsafe_b64decode(data).decode()
+            if mime_type == "text/html":
+                return html_to_text(content)
+            return content
         return ""
 
 

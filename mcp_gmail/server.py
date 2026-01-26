@@ -434,3 +434,6 @@ def get_emails(message_ids: list[str]) -> str:
             result += f"Error: {error}\n"
 
     return result
+
+if __name__ == "__main__":
+    mcp.run()
